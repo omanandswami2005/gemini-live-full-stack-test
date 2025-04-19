@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Live Web SDK Test</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Voice Bar Styling */
+    .voice-bar {
+      transform-origin: bottom;
+      transition: height 0.05s ease, box-shadow 0.05s ease;
+      width: 8px;
+      border-radius: 4px;
+      background: linear-gradient(135deg, #00ffcc, #00ccff);
+    }
+    .voice-bar-container {
+      height: 48px; /* Reduced height from 64px to 48px */
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .voice-bar-idle {
+      height: 10%;
+      animation: voiceBarIdle 1.5s ease-in-out infinite;
+    }
+    @keyframes voiceBarIdle {
+      0% { height: 10%; box-shadow: 0 0 5px rgba(0, 255, 255, 0.3); }
+      50% { height: 20%; box-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
+      100% { height: 10%; box-shadow: 0 0 5px rgba(0, 255, 255, 0.3); }
+    }
+
+    /* Glass Effect */
+    .glass {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Other Animations */
+    @keyframes bounceColor {
+      0% { transform: translateY(0); color: #ff0000; }
+      50% { transform: translateY(-10px); color: #ff0000; }
+      100% { transform: translateY(0); color: #ffffff; }
+    }
+    .animate-bounceColor {
+      animation: bounceColor 0.5s ease;
+      display: inline-block;
+    }
+    @keyframes titleEntrance {
+      0% { transform: scale(0.5); opacity: 0; }
+      70% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-title {
+      animation: titleEntrance 1s ease-out forwards;
+    }
+    @keyframes statusPulse {
+      0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.8); }
+      100% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+    }
+    .animate-status {
+      animation: statusPulse 2s infinite;
+    }
+    @keyframes videoZoom {
+      0% { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-video {
+      animation: videoZoom 0.8s ease-out forwards;
+    }
+    @keyframes buttonPop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .button-hover:hover {
+      animation: buttonPop 0.3s ease;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-indigo-900 min-h-screen text-white font-sans">
+  <div class="max-w-4xl mx-auto p-6">
+    <h1 class="text-4xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 glass rounded-lg py-2 animate-title">
+      Gemini Live Web SDK Test
+    </h1>
+    
+    <div id="status" class="text-lg font-semibold text-center p-4 rounded-lg glass mb-4 animate-status">
+      Disconnected
+    </div>
+    <div id="error" class="text-red-400 text-center mb-4"></div>
+
+    <div class="glass p-6 rounded-xl shadow-2xl mb-6 grid grid-cols-2 gap-4">
+      <div>
+        <video id="videoPreview" autoplay playsinline class="border-2 border-indigo-500 rounded-lg w-80 h-60 bg-black mx-auto animate-video"></video>
+        <div class="mt-4 flex justify-center gap-8">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">User Input Volume:</label>
+            <div class="voice-bar-container">
+              <div id="volume-meter-user-1" class="voice-bar voice-bar-idle"></div>
+              <div id="volume-meter-user-2" class="voice-bar voice-bar-idle" style="animation-delay: 0.2s;"></div>
+              <div id="volume-meter-user-3" class="voice-bar voice-bar-idle" style="animation-delay: 0.4s;"></div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Incoming Voice Volume:</label>
+            <div class="voice-bar-container">
+              <div id="volume-meter-stream-1" class="voice-bar voice-bar-idle"></div>
+              <div id="volume-meter-stream-2" class="voice-bar voice-bar-idle" style="animation-delay: 0.2s;"></div>
+              <div id="volume-meter-stream-3" class="voice-bar voice-bar-idle" style="animation-delay: 0.4s;"></div>
+            </div>
+          </div>
+        </div>
+        <progress id="volume-meter-user" max="100" value="0" style="display: none;"></progress>
+        <progress id="volume-meter-stream" max="100" value="0" style="display: none;"></progress>
+      </div>
+      <div id="transcription-display" class="p-4 rounded-lg glass text-lg text-gray-200 min-h-[100px] max-h-[200px] overflow-y-auto whitespace-pre-wrap">
+        Waiting for transcription...
+      </div>
+    </div>
+
+    <div class="flex flex-wrap justify-center gap-4">
+      <button id="start" onclick="startRecording()" disabled class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed glass button-hover">
+        Start Recording
+      </button>
+      <button id="stop" onclick="stopRecording()" disabled class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed glass button-hover">
+        Stop Recording
+      </button>
+      <button id="mute" onclick="toggleMute()" disabled class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed glass button-hover">
+        Mute
+      </button>
+      <button id="webcam" onclick="toggleWebcam()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition glass button-hover">
+        Toggle Webcam
+      </button>
+      <button id="screen" onclick="toggleScreen()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition glass button-hover">
+        Toggle Screen Share
+      </button>
+      <button id="switch-camera" onclick="switchCamera()" disabled class="px-6 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition disabled:opacity-50 disabled:cursor-not-allowed glass button-hover">
+        Switch Camera
+      </button>
+      <button id="retry" onclick="retryConnection()" class="hidden px-6 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition glass button-hover">
+        Retry Connection
+      </button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/gemini-live-web-sdk@1.0.18/dist/gemini-live-web-sdk.umd.js"></script>
+
+  <script>
+    let authtoken = null; // Replace with your actual token
+    window.addEventListener('load', () => {
+      authtoken = prompt('Enter your auth token:');
+      if (!authtoken) {
+        alert('Token is required to proceed. Please refresh the page and enter a valid token.');
+        return;
+      }
+      initializeSDK();
+    });
+    const statusDiv = document.getElementById('status');
+    const errorDiv = document.getElementById('error');
+    const startButton = document.getElementById('start');
+    const stopButton = document.getElementById('stop');
+    const muteButton = document.getElementById('mute');
+    const webcamButton = document.getElementById('webcam');
+    const screenButton = document.getElementById('screen');
+    const switchCameraButton = document.getElementById('switch-camera');
+    const retryButton = document.getElementById('retry');
+    const userVolumeBars = [
+      document.getElementById('volume-meter-user-1'),
+      document.getElementById('volume-meter-user-2'),
+      document.getElementById('volume-meter-user-3')
+    ];
+    const streamVolumeBars = [
+      document.getElementById('volume-meter-stream-1'),
+      document.getElementById('volume-meter-stream-2'),
+      document.getElementById('volume-meter-stream-3')
+    ];
+    const volumeMeterUser = document.getElementById('volume-meter-user');
+    const volumeMeterStream = document.getElementById('volume-meter-stream');
+    const transcriptionDisplay = document.getElementById('transcription-display');
+
+    let currentTranscription = '';
+
+    function showError(message) {
+      errorDiv.textContent = message;
+      retryButton.classList.remove('hidden');
+      setTimeout(() => errorDiv.textContent = '', 5000);
+    }
+
+    let sdk;
+    function initializeSDK() {
+      try {
+        const SDKClass = window.GeminiLiveWebSDK.GeminiLiveWebSDK;
+        sdk = new SDKClass('http://localhost:8080', token = authtoken, {
+          sampleRate: 24000,
+          videoElement: document.getElementById('videoPreview'),
+          audioElement: document.getElementById('audioPreview')
+        });
+      } catch (error) {
+        showError(`SDK Initialization Failed: ${error.message}`);
+        return false;
+      }
+
+      try {
+        sdk.setVideoElement(document.getElementById('videoPreview'));
+      } catch (error) {
+        showError(`Video Element Setup Failed: ${error.message}`);
+        return false;
+      }
+
+      sdk.on('setupComplete', () => {
+        statusDiv.textContent = 'Connected';
+        startButton.disabled = false;
+        webcamButton.disabled = false;
+        screenButton.disabled = false;
+        retryButton.classList.add('hidden');
+      });
+
+      let volumeUpdateInterval;
+      sdk.on('recordingStarted', () => {
+        statusDiv.textContent = 'Recording';
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        muteButton.disabled = false;
+        switchCameraButton.disabled = !sdk.mediaHandler?.isWebcamActive;
+        transcriptionDisplay.innerHTML = '';
+        currentTranscription = '';
+        try {
+          sdk.createUserVolumeMeter(volumeMeterUser);
+          sdk.createStreamVolumeMeter(volumeMeterStream);
+          volumeUpdateInterval = setInterval(() => {
+            updateVolumeBars(userVolumeBars, volumeMeterUser.value);
+            updateVolumeBars(streamVolumeBars, volumeMeterStream.value);
+          }, 50);
+        } catch (error) {
+          showError(`Volume Meter Setup Failed: ${error.message}`);
+        }
+      });
+
+      sdk.on('recordingStopped', () => {
+        statusDiv.textContent = 'Connected';
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        muteButton.disabled = true;
+        switchCameraButton.disabled = true;
+        muteButton.textContent = 'Mute';
+        clearInterval(volumeUpdateInterval);
+        resetVolumeBars(userVolumeBars);
+        resetVolumeBars(streamVolumeBars);
+        transcriptionDisplay.textContent = 'Waiting for transcription...';
+        currentTranscription = '';
+      });
+
+      sdk.on('transcriptionUpdate', (text) => {
+        const commonLength = getCommonPrefixLength(currentTranscription, text);
+        const existingText = text.substring(0, commonLength);
+        const newText = text.substring(commonLength);
+        transcriptionDisplay.innerHTML = existingText + newText.split('').map((char, index) => {
+          return `<span class="animate-bounceColor" style="animation-delay: ${index * 0.1}s">${char}</span>`;
+        }).join('');
+        currentTranscription = text;
+      });
+
+      sdk.on('audioReceived', () => {});
+      sdk.on('toolCall', (toolCall) => {
+        if (toolCall.function === 'get_weather') {
+          sdk.sendToolResponse({ function: 'get_weather', result: { temperature: 25, condition: 'sunny' } });
+        }
+      });
+      sdk.on('muteToggled', (isMuted) => {
+        muteButton.textContent = isMuted ? 'Unmute' : 'Mute';
+      });
+      sdk.on('error', (error) => {
+        showError(`SDK Error: ${error.message}`);
+        statusDiv.textContent = 'Disconnected';
+        startButton.disabled = true;
+        stopButton.disabled = true;
+        muteButton.disabled = true;
+        webcamButton.disabled = true;
+        screenButton.disabled = true;
+        switchCameraButton.disabled = true;
+      });
+      sdk.on('close', () => {
+        statusDiv.textContent = 'Disconnected';
+        startButton.disabled = true;
+        stopButton.disabled = true;
+        muteButton.disabled = true;
+        webcamButton.disabled = true;
+        screenButton.disabled = true;
+        switchCameraButton.disabled = true;
+        retryButton.classList.remove('hidden');
+      });
+
+      return true;
+    }
+
+  
+
+    function getCommonPrefixLength(str1, str2) {
+      let i = 0;
+      while (i < str1.length && i < str2.length && str1[i] === str2[i]) i++;
+      return i;
+    }
+
+    function updateVolumeBars(bars, volume) {
+      bars.forEach((bar, index) => {
+        const scale = Math.max(10, volume - (index * 10)); // Minimum height 10%, adjust per bar
+        bar.style.height = `${scale}%`;
+        bar.style.boxShadow = `0 0 ${5 + volume / 10}px rgba(0, 255, 255, ${0.3 + volume / 200})`;
+        bar.classList.remove('voice-bar-idle');
+      });
+    }
+
+    function resetVolumeBars(bars) {
+      bars.forEach((bar, index) => {
+        bar.style.height = '10%';
+        bar.style.boxShadow = '0 0 5px rgba(0, 255, 255, 0.3)';
+        bar.classList.add('voice-bar-idle');
+        bar.style.animationDelay = `${index * 0.2}s`;
+      });
+    }
+
+    function startRecording() { try { sdk.startRecording(); } catch (error) { showError(`Start Recording Failed: ${error.message}`); } }
+    function stopRecording() { try { sdk.stopRecording(); } catch (error) { showError(`Stop Recording Failed: ${error.message}`); } }
+    function toggleMute() { try { sdk.toggleMute(); } catch (error) { showError(`Toggle Mute Failed: ${error.message}`); } }
+    function toggleWebcam() { try { sdk.toggleWebcam(); switchCameraButton.disabled = !sdk.mediaHandler?.isWebcamActive; } catch (error) { showError(`Toggle Webcam Failed: ${error.message}`); } }
+    function toggleScreen() { try { sdk.toggleScreen(); } catch (error) { showError(`Toggle Screen Share Failed: ${error.message}`); } }
+    function switchCamera() { try { sdk.switchCamera(); } catch (error) { showError(`Switch Camera Failed: ${error.message}`); } }
+    function retryConnection() {
+      if (sdk) sdk.destroy();
+      statusDiv.textContent = 'Connecting...';
+      retryButton.classList.add('hidden');
+      if (!initializeSDK()) showError('Failed to initialize SDK for retry');
+    }
+
+    window.addEventListener('beforeunload', () => { if (sdk) sdk.destroy(); });
+  </script>
+</body>
+</html>
