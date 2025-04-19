@@ -9,7 +9,7 @@ const server = new GeminiLiveWsServer({
     "codeExecution",
   ],
   googleApiKey: process.env.GOOGLE_API_KEY,
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: { origin: "https://geminilivewebsdk.onrender.com/", methods: ["GET", "POST"] },
   authMiddleware: (socket, next) => {
     const apiKey = socket.handshake.auth.token;
     console.log(`Authentication attempt with API key: ${apiKey}`);

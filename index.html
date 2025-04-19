@@ -192,7 +192,7 @@
     function initializeSDK() {
       try {
         const SDKClass = window.GeminiLiveWebSDK.GeminiLiveWebSDK;
-        sdk = new SDKClass('http://localhost:8080', token = authtoken, {
+        sdk = new SDKClass('https://gemini-live-ws.onrender.com', token = authtoken, {
           sampleRate: 24000,
           videoElement: document.getElementById('videoPreview'),
           audioElement: document.getElementById('audioPreview')
