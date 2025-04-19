@@ -55,8 +55,8 @@ Each example includes fully annotated code and instructions to get you up and ru
 
 1. **Clone this repo**
    ```bash
-   git clone https://github.com/yourusername/gemini-live-examples.git
-   cd gemini-live-examples
+   git clone https://github.com/omanandswami2005/gemini-live-full-stack-test.git
+   cd gemini-live-full-stack-test
    ```
 2. **Install dependencies**
    ```bash
